@@ -1,0 +1,54 @@
+group 'fr.mgaillard.lire.ris'
+version '0.1.0'
+
+apply plugin: 'java'
+apply plugin:'application'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.apache.lucene', name: 'lucene-core', version: '6.2.1'
+    compile group: 'org.apache.lucene', name: 'lucene-analyzers-common', version: '6.2.1'
+    compile group: 'org.apache.lucene', name: 'lucene-queryparser', version: '6.2.1'
+    compile group: 'commons-io', name: 'commons-io', version: '2.5'
+    compile group: 'org.apache.commons', name: 'commons-math3', version: '3.6.1'
+    // https://mvnrepository.com/artifact/com.sangupta/jopensurf
+    compile group: 'com.sangupta', name: 'jopensurf', version: '1.0.0'
+    compile fileTree(dir: 'lib', include: '*.jar')
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+}
+
+mainClassName = "fr.mgaillard.lire.ris.LireRis"
+
+jar {
+    // From http://cmoz.me/blog/2014/11/service-files-uber-jars-and-gradle/
+    doFirst {
+        def serviceDir = file("$buildDir/META-INF/services")
+        serviceDir.deleteDir()
+        serviceDir.mkdirs()
+
+        // copy all service files from deps to buildDir
+        for(file in configurations.runtime) {
+            zipTree(file).matching{ include 'META-INF/services/*' }.each { f ->
+                new File(serviceDir, f.name) << f.getText("UTF-8")
+            }
+        }
+    }
+
+    manifest {
+        attributes 'Main-Class': "$mainClassName",
+                'Implementation-Title': 'LireRis',
+                'Implementation-Version': version
+    }
+
+    from(configurations.runtime.collect{ it.isDirectory() ? it : zipTree(it) }) {
+        exclude 'META-INF/**' // Don't let Gradle merge service files
+    }
+
+    // Include service files from the buildDir.
+    from fileTree(buildDir).matching{ include 'META-INF/services/*' }
+}
