@@ -6,7 +6,7 @@ Features
 --------
 
 - Index the images from a directory
-- Search for an image even with a slightly modified version
+- Search for images even with slightly modified versions
 
 How it works ?
 --------------
@@ -33,6 +33,9 @@ $ java -jar lire-ris-x.y.z.jar add_dir <dir_path>
 
 # Search for an image
 $ java -jar lire-ris-x.y.z.jar search <file_path>
+
+# Search for all the images in a directory
+$ java -jar lire-ris-x.y.z.jar search <directory_path>
 ```
 
 License

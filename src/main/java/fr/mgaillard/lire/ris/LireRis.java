@@ -30,6 +30,7 @@ import org.apache.lucene.store.FSDirectory;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Paths;
 
@@ -43,6 +44,18 @@ public class LireRis {
      * Name of the directory which contains the index.
      */
     private static final String INDEX_NAME = "index";
+
+    /**
+     * All valid image file extensions.
+     */
+    private static final String[] IMAGE_EXTENSIONS = new String[] {
+        "jpg", "jpeg", "png"
+    };
+
+    /**
+     * Number of nearest images to search.
+     */
+    private static final int MAX_HITS = 3;
 
     /**
      * @param args the command line arguments
@@ -62,7 +75,7 @@ public class LireRis {
                 break;
 
             case "search":
-                SearchImage(path);
+                Search(path);
                 break;
 
             default:
@@ -104,28 +117,69 @@ public class LireRis {
     }
 
     /**
-     * Search an image into the index.
+     * Search an image or all the images in a directory into the index.
      * The index is stored in a directory called INDEX_NAME.
-     * @param image_path Path to the image.
+     * @param path Path to the image or the directory.
      */
-    public static void SearchImage(String image_path) {
-        // Checking if image_path is there and if it is an image.
-        File f = new File(image_path);
-        if (f.exists()) {
-            try {
-                BufferedImage image = ImageIO.read(f);
-                IndexReader ir = DirectoryReader.open(FSDirectory.open(Paths.get(INDEX_NAME)));
-                ImageSearcher searcher = new GenericFastImageSearcher(30, CEDD.class);
+    public static void Search(String path) {
+        File[] files = null;
 
-                // Searching with a image file.
-                ImageSearchHits hits = searcher.search(image, ir);
-                for (int i = 0; i < hits.length(); i++) {
-                    String fileName = ir.document(hits.documentID(i)).getValues(DocumentBuilder.FIELD_NAME_IDENTIFIER)[0];
-                    System.out.println(hits.score(i) + ": \t" + fileName);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
+        // Filling files with image files to search.
+        File f = new File(path);
+        if (f.exists()) {
+            if (f.isDirectory()) {
+                files = f.listFiles(IMAGE_FILENAME_FILTER);
+            } else if (f.isFile() && IMAGE_FILENAME_FILTER.accept(f.getParentFile(), f.getName())) {
+                files = new File[1];
+                files[0] = f;
+            }
+        }
+
+        // Search for all image files.
+        if (files.length > 0) {
+            for (File file : files) {
+                System.out.println("Searching for file : " + file.getPath());
+                SearchImage(file);
+                System.out.println();
             }
         }
     }
+
+    /**
+     * Search an image into the index.
+     * The index is stored in a directory called INDEX_NAME.
+     * Contract: The file should be an existing image.
+     * @param image_file A File object for the image.
+     */
+    public static void SearchImage(File image_file) {
+        try {
+            BufferedImage image = ImageIO.read(image_file);
+            IndexReader ir = DirectoryReader.open(FSDirectory.open(Paths.get(INDEX_NAME)));
+            ImageSearcher searcher = new GenericFastImageSearcher(MAX_HITS, CEDD.class);
+
+            // Searching with a image file.
+            ImageSearchHits hits = searcher.search(image, ir);
+            for (int i = 0; i < hits.length(); i++) {
+                String fileName = ir.document(hits.documentID(i)).getValues(DocumentBuilder.FIELD_NAME_IDENTIFIER)[0];
+                System.out.println(hits.score(i) + ": \t" + fileName);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * A FilenameFilter that accepts images.
+     */
+    private static final FilenameFilter IMAGE_FILENAME_FILTER = new FilenameFilter() {
+        @Override
+        public boolean accept(File dir, String name) {
+            for (final String ext : IMAGE_EXTENSIONS) {
+                if (name.toLowerCase().endsWith("." + ext)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    };
 }
